@@ -1,4 +1,5 @@
 import { GamePhase } from '@crash/shared';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '../../store/game-store.js';
 import { usePlayerStore } from '../../store/player-store.js';
 import { formatMultiplier, formatCurrency } from '../../lib/format.js';
@@ -11,7 +12,13 @@ interface CashoutButtonProps {
 export function CashoutButton({ onPlaceBet, onCashOut }: CashoutButtonProps) {
   const phase = useGameStore((s) => s.phase);
   const multiplier = useGameStore((s) => s.multiplier);
-  const { hasActiveBet, cashedOutAt, betAmount } = usePlayerStore();
+  const { hasActiveBet, cashedOutAt, betAmount } = usePlayerStore(
+    useShallow((s) => ({
+      hasActiveBet: s.hasActiveBet,
+      cashedOutAt: s.cashedOutAt,
+      betAmount: s.betAmount,
+    }))
+  );
 
   if (phase === GamePhase.WAITING || phase === GamePhase.COUNTDOWN) {
     return (
@@ -29,7 +36,7 @@ export function CashoutButton({ onPlaceBet, onCashOut }: CashoutButtonProps) {
     return (
       <button
         onClick={onCashOut}
-        className="w-full py-4 rounded-xl text-lg font-bold tracking-wide bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white transition-all animate-pulse"
+        className="w-full py-4 rounded-xl text-lg font-bold tracking-wide bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white transition-all animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]"
       >
         CASH OUT @ {formatMultiplier(multiplier)}
       </button>

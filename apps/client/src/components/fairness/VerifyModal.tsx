@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { sha256 } from '@crash/shared';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '../../store/game-store.js';
 
 interface VerifyModalProps {
@@ -10,7 +11,14 @@ interface VerifyModalProps {
 type VerifyStatus = 'idle' | 'verifying' | 'valid' | 'invalid' | 'unavailable';
 
 export function VerifyModal({ isOpen, onClose }: VerifyModalProps) {
-  const { roundId, crashPoint, serverSeed, roundHistory } = useGameStore();
+  const { roundId, crashPoint, serverSeed, roundHistory } = useGameStore(
+    useShallow((s) => ({
+      roundId: s.roundId,
+      crashPoint: s.crashPoint,
+      serverSeed: s.serverSeed,
+      roundHistory: s.roundHistory,
+    }))
+  );
   const [status, setStatus] = useState<VerifyStatus>('idle');
   const [computedHash, setComputedHash] = useState<string | null>(null);
 

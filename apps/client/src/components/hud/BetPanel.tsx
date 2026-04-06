@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { usePlayerStore } from '../../store/player-store.js';
 import { formatCurrency } from '../../lib/format.js';
 import { CashoutButton } from './CashoutButton.js';
@@ -10,7 +11,15 @@ interface BetPanelProps {
 
 export function BetPanel({ onPlaceBet, onCashOut }: BetPanelProps) {
   const { balance, betAmount, autoCashoutAt, setBetAmount, setAutoCashout } =
-    usePlayerStore();
+    usePlayerStore(
+      useShallow((s) => ({
+        balance: s.balance,
+        betAmount: s.betAmount,
+        autoCashoutAt: s.autoCashoutAt,
+        setBetAmount: s.setBetAmount,
+        setAutoCashout: s.setAutoCashout,
+      }))
+    );
 
   const [autoCashoutInput, setAutoCashoutInput] = useState(
     autoCashoutAt != null ? String(autoCashoutAt) : '',

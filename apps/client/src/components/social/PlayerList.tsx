@@ -1,10 +1,17 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '../../store/game-store.js';
 import { usePlayerStore } from '../../store/player-store.js';
 import { formatCurrency, formatMultiplier } from '../../lib/format.js';
 
 export function PlayerList() {
   const bots = useGameStore((s) => s.bots);
-  const { hasActiveBet, betAmount, cashedOutAt } = usePlayerStore();
+  const { hasActiveBet, betAmount, cashedOutAt } = usePlayerStore(
+    useShallow((s) => ({
+      hasActiveBet: s.hasActiveBet,
+      betAmount: s.betAmount,
+      cashedOutAt: s.cashedOutAt,
+    }))
+  );
 
   const hasBots = bots.length > 0;
   const hasPlayer = hasActiveBet || cashedOutAt != null;
