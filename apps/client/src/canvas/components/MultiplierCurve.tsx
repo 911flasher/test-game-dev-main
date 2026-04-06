@@ -16,8 +16,14 @@ interface MultiplierCurveProps {
   height: number;
 }
 
+interface Point {
+  t: number;
+  m: number;
+}
+
 export function MultiplierCurve({ width, height }: MultiplierCurveProps) {
   const graphicsRef = useRef<Graphics | null>(null);
+  const pointsRef = useRef<Point[]>([]);
 
   const tick = useCallback(() => {
     const g = graphicsRef.current;
@@ -31,77 +37,88 @@ export function MultiplierCurve({ width, height }: MultiplierCurveProps) {
 
     if (!isFlying && !isCrashed) {
       g.clear();
+      pointsRef.current = [];
       return;
     }
 
     const elapsedMs =
       roundStartedAt != null ? Date.now() - roundStartedAt : 0;
 
+    if (isFlying) {
+      // Add initial point
+      if (pointsRef.current.length === 0) {
+        pointsRef.current.push({ t: 0, m: 1.0 });
+      }
+      
+      const lastPoint = pointsRef.current[pointsRef.current.length - 1];
+      // Only push new points if enough time has passed (approx 60fps = 16ms)
+      if (elapsedMs - lastPoint.t >= 16) {
+        pointsRef.current.push({ t: elapsedMs, m: getMultiplierAtTime(elapsedMs) });
+      }
+      // Also ensure we have a point exactly at the current multiplier/time for smooth head
+      // but don't commit it to the array permanently unless it meets the 16ms rule.
+    }
+
     const viewport = calculateViewport(multiplier, Math.max(elapsedMs, 1000), width, height);
 
     g.clear();
 
-    const steps = 120;
     const color = isCrashed ? 0xef4444 : 0x22d3ee;
-    
-    // Draw area under curve
-    g.beginPath();
-    const startPoint = worldToScreen(0, 1.0, viewport, width, height);
-    g.moveTo(startPoint.x, height); // Start from bottom
-    g.lineTo(startPoint.x, startPoint.y);
 
-    let lastX = startPoint.x;
-    let lastY = startPoint.y;
-
-    for (let i = 1; i <= steps; i++) {
-      const t = (i / steps) * elapsedMs;
-      const m = getMultiplierAtTime(t);
-      if (m > multiplier + 0.05) break;
-      const { x, y } = worldToScreen(t, m, viewport, width, height);
-      g.lineTo(x, y);
-      lastX = x;
-      lastY = y;
+    // Build the render points for this frame
+    const renderPoints = pointsRef.current.slice();
+    if (isFlying) {
+       // Append the exact current head to avoid jitter
+       renderPoints.push({ t: elapsedMs, m: multiplier });
     }
-    g.lineTo(lastX, height);
-    g.lineTo(startPoint.x, height);
-    
-    // Transparent fill for the area
+
+    if (renderPoints.length === 0) return;
+
+    // Batch convert world coordinates to screen coordinates once
+    const screenPoints = renderPoints.map((p) =>
+      worldToScreen(p.t, p.m, viewport, width, height)
+    );
+
+    const startPoint = screenPoints[0];
+    const endPoint = screenPoints[screenPoints.length - 1];
+
+    // 1. Draw area under curve
+    g.beginPath();
+    g.moveTo(startPoint.x, height); // Start from bottom left
+    g.lineTo(startPoint.x, startPoint.y);
+    for (let i = 1; i < screenPoints.length; i++) {
+      g.lineTo(screenPoints[i].x, screenPoints[i].y);
+    }
+    g.lineTo(endPoint.x, height); // Line down to bottom right
+    g.lineTo(startPoint.x, height); // Back to bottom left
     g.setFillStyle({ color, alpha: 0.15 });
     g.fill();
 
-    // Draw main glowing line (thicker, lower alpha)
+    // 2. Draw main glowing line (thicker, lower alpha)
     g.setStrokeStyle({ width: 8, color, alpha: 0.3 });
     g.beginPath();
     g.moveTo(startPoint.x, startPoint.y);
-    for (let i = 1; i <= steps; i++) {
-      const t = (i / steps) * elapsedMs;
-      const m = getMultiplierAtTime(t);
-      if (m > multiplier + 0.05) break;
-      const { x, y } = worldToScreen(t, m, viewport, width, height);
-      g.lineTo(x, y);
+    for (let i = 1; i < screenPoints.length; i++) {
+      g.lineTo(screenPoints[i].x, screenPoints[i].y);
     }
     g.stroke();
 
-    // Draw main sharp line
+    // 3. Draw main sharp line
     g.setStrokeStyle({ width: 3, color, alpha: 1 });
     g.beginPath();
     g.moveTo(startPoint.x, startPoint.y);
-    for (let i = 1; i <= steps; i++) {
-      const t = (i / steps) * elapsedMs;
-      const m = getMultiplierAtTime(t);
-      if (m > multiplier + 0.05) break;
-      const { x, y } = worldToScreen(t, m, viewport, width, height);
-      g.lineTo(x, y);
+    for (let i = 1; i < screenPoints.length; i++) {
+      g.lineTo(screenPoints[i].x, screenPoints[i].y);
     }
     g.stroke();
 
     if (isFlying) {
       g.setFillStyle({ color: 0xffffff, alpha: 1 });
-      g.circle(lastX, lastY, 4);
+      g.circle(endPoint.x, endPoint.y, 4);
       g.fill();
       
       // Rocket position update
-      setRocketPosition({ x: lastX, y: lastY });
+      setRocketPosition({ x: endPoint.x, y: endPoint.y });
     }
   }, [width, height]);
 
