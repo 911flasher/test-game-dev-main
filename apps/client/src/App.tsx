@@ -12,6 +12,7 @@ import { BetPanel } from './components/hud/BetPanel.js';
 import { PlayerList } from './components/social/PlayerList.js';
 import { RoundHistory } from './components/history/RoundHistory.js';
 import { VerifyModal } from './components/fairness/VerifyModal.js';
+import { CashoutCelebration } from './components/hud/CashoutCelebration.js';
 
 export function App() {
   const { send } = useGameSocket();
@@ -83,6 +84,7 @@ export function App() {
           <RocketRive />
           <MultiplierDisplay />
           <RoundCountdown />
+          <CashoutCelebration />
         </div>
 
         {/* Sidebar */}
