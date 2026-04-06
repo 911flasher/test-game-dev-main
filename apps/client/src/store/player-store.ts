@@ -1,11 +1,16 @@
+/**
+ * Локальное хранилище данных текущего игрока (Zustand).
+ * Назначение: хранит состояние баланса игрока, параметры его текущей ставки
+ * и данные о совершенном автовыводе. Отделено от game-store для удобства.
+ */
 import { create } from 'zustand';
 
 interface PlayerState {
-  balance: number;
-  betAmount: number;
-  autoCashoutAt: number | null;
-  hasActiveBet: boolean;
-  cashedOutAt: number | null;
+  balance: number;            // Текущий баланс пользователя
+  betAmount: number;          // Сумма, которую игрок хочет поставить
+  autoCashoutAt: number | null; // Целевой множитель для авто-вывода (кэшаута)
+  hasActiveBet: boolean;      // Сделал ли игрок ставку в текущем раунде
+  cashedOutAt: number | null; // Множитель, на котором игрок успел вывести деньги (null, если не вывел или проиграл)
 }
 
 interface PlayerActions {
@@ -18,18 +23,19 @@ interface PlayerActions {
 }
 
 export const usePlayerStore = create<PlayerState & PlayerActions>((set) => ({
-  // State
+  // Начальное состояние (State)
   balance: 1000,
   betAmount: 10,
   autoCashoutAt: null,
   hasActiveBet: false,
   cashedOutAt: null,
 
-  // Actions
+  // Действия (Actions)
   setBetAmount: (betAmount) => set({ betAmount }),
 
   setAutoCashout: (autoCashoutAt) => set({ autoCashoutAt }),
 
+  // Локально фиксируем ставку и уменьшаем баланс (до ответа сервера для отзывчивости)
   placeBet: (amount) =>
     set((state) => ({
       balance: state.balance - amount,
@@ -37,6 +43,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set) => ({
       cashedOutAt: null,
     })),
 
+  // Локально фиксируем успешный вывод средств (по ответу от сервера)
   cashOut: (_winnings, balance, at) =>
     set({
       balance,
@@ -44,11 +51,13 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set) => ({
       cashedOutAt: at,
     }),
 
+  // Сброс ставки и статуса вывода перед началом новой игры
   resetForNewRound: () =>
     set({
       hasActiveBet: false,
       cashedOutAt: null,
     }),
 
+  // Синхронизация баланса (обычно при первичном подключении к сокету)
   setBalance: (balance) => set({ balance }),
 }));
