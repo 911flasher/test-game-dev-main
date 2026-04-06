@@ -1,0 +1,7 @@
+export function formatMultiplier(value: number): string {
+  return `${value.toFixed(2)}x`;
+}
+
+export function formatCurrency(value: number): string {
+  return `$${value.toFixed(2)}`;
+}

@@ -1,0 +1,15 @@
+{
+  "name": "crash-game",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @crash/server dev\" \"pnpm --filter @crash/client dev\"",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "tsc -b"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.8.3"
+  }
+}

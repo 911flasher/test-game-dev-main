@@ -1,0 +1,25 @@
+{
+  "name": "@crash/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@crash/shared": "workspace:*",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/websocket": "^11.0.0",
+    "fastify": "^5.3.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.0"
+  }
+}
