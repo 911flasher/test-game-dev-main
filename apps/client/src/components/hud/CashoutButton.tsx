@@ -1,4 +1,5 @@
 import { GamePhase } from '@crash/shared';
+import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '../../store/game-store.js';
 import { usePlayerStore } from '../../store/player-store.js';
@@ -20,14 +21,44 @@ export function CashoutButton({ onPlaceBet, onCashOut }: CashoutButtonProps) {
     }))
   );
 
+  const [justPlaced, setJustPlaced] = useState(false);
+
+  useEffect(() => {
+    if (hasActiveBet && (phase === GamePhase.WAITING || phase === GamePhase.COUNTDOWN)) {
+      setJustPlaced(true);
+      const timer = setTimeout(() => setJustPlaced(false), 500);
+      
+      // Haptic feedback if available on device
+      if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+        try { window.navigator.vibrate(50); } catch (e) { /* ignore */ }
+      }
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasActiveBet, phase]);
+
   if (phase === GamePhase.WAITING || phase === GamePhase.COUNTDOWN) {
+    if (hasActiveBet) {
+      return (
+        <button
+          disabled
+          className={`w-full py-4 rounded-xl text-lg font-bold tracking-wide transition-all duration-300 ${
+            justPlaced
+              ? 'bg-emerald-500 text-white scale-105 shadow-[0_0_20px_rgba(16,185,129,0.8)]'
+              : 'bg-emerald-900/80 text-emerald-300 opacity-90 border border-emerald-800'
+          }`}
+        >
+          {justPlaced ? 'BET LOCKED!' : 'BET PLACED'}
+        </button>
+      );
+    }
+
     return (
       <button
         onClick={onPlaceBet}
-        disabled={hasActiveBet}
-        className="w-full py-4 rounded-xl text-lg font-bold tracking-wide bg-cyan-500 hover:bg-cyan-400 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-gray-950 transition-all"
+        className="w-full py-4 rounded-xl text-lg font-bold tracking-wide bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-gray-950 transition-all hover:shadow-[0_0_15px_rgba(34,211,238,0.5)]"
       >
-        {hasActiveBet ? 'Bet Placed' : 'PLACE BET'}
+        PLACE BET
       </button>
     );
   }
