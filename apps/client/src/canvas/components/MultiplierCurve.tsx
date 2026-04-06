@@ -43,15 +43,15 @@ export function MultiplierCurve({ width, height }: MultiplierCurveProps) {
 
     const steps = 120;
     const color = isCrashed ? 0xef4444 : 0x22d3ee;
+    
+    // Draw area under curve
+    g.beginPath();
+    const startPoint = worldToScreen(0, 1.0, viewport, width, height);
+    g.moveTo(startPoint.x, height); // Start from bottom
+    g.lineTo(startPoint.x, startPoint.y);
 
-    g.setStrokeStyle({ width: 3, color, alpha: 1 });
-    g.moveTo(
-      worldToScreen(0, 1.0, viewport, width, height).x,
-      worldToScreen(0, 1.0, viewport, width, height).y,
-    );
-
-    let lastX = 0;
-    let lastY = 0;
+    let lastX = startPoint.x;
+    let lastY = startPoint.y;
 
     for (let i = 1; i <= steps; i++) {
       const t = (i / steps) * elapsedMs;
@@ -62,12 +62,45 @@ export function MultiplierCurve({ width, height }: MultiplierCurveProps) {
       lastX = x;
       lastY = y;
     }
+    g.lineTo(lastX, height);
+    g.lineTo(startPoint.x, height);
+    
+    // Transparent fill for the area
+    g.setFillStyle({ color, alpha: 0.15 });
+    g.fill();
+
+    // Draw main glowing line (thicker, lower alpha)
+    g.setStrokeStyle({ width: 8, color, alpha: 0.3 });
+    g.beginPath();
+    g.moveTo(startPoint.x, startPoint.y);
+    for (let i = 1; i <= steps; i++) {
+      const t = (i / steps) * elapsedMs;
+      const m = getMultiplierAtTime(t);
+      if (m > multiplier + 0.05) break;
+      const { x, y } = worldToScreen(t, m, viewport, width, height);
+      g.lineTo(x, y);
+    }
+    g.stroke();
+
+    // Draw main sharp line
+    g.setStrokeStyle({ width: 3, color, alpha: 1 });
+    g.beginPath();
+    g.moveTo(startPoint.x, startPoint.y);
+    for (let i = 1; i <= steps; i++) {
+      const t = (i / steps) * elapsedMs;
+      const m = getMultiplierAtTime(t);
+      if (m > multiplier + 0.05) break;
+      const { x, y } = worldToScreen(t, m, viewport, width, height);
+      g.lineTo(x, y);
+    }
     g.stroke();
 
     if (isFlying) {
-      g.setFillStyle({ color: 0x22d3ee, alpha: 1 });
-      g.circle(lastX, lastY, 6);
+      g.setFillStyle({ color: 0xffffff, alpha: 1 });
+      g.circle(lastX, lastY, 4);
       g.fill();
+      
+      // Rocket position update
       setRocketPosition({ x: lastX, y: lastY });
     }
   }, [width, height]);
