@@ -53,7 +53,7 @@ export function Explosion() {
     });
   }, []);
 
-  const draw = useCallback((_delta: number) => {
+  const draw = useCallback(() => {
     const g = graphicsRef.current;
     if (!g) return;
 
