@@ -67,7 +67,7 @@ export function RocketRive() {
     width: ROCKET_SIZE,
     height: ROCKET_SIZE,
     pointerEvents: 'none',
-    transition: 'left 16ms linear, top 16ms linear, transform 0.3s ease-out, opacity 0.5s ease-out',
+    transition: 'transform 0.3s ease-out, opacity 0.5s ease-out',
     transform: `rotate(${-containerRotation}deg) scale(${isCrashed ? 0 : 1})`,
     opacity: isCrashed ? 0 : 1, // Hide rocket on crash (explosion takes over)
     filter: phase === GamePhase.FLYING ? `drop-shadow(0 0 10px rgba(34, 211, 238, 0.5))` : 'none',
