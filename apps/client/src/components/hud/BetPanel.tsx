@@ -24,8 +24,34 @@ export function BetPanel({ onPlaceBet, onCashOut }: BetPanelProps) {
   const [autoCashoutInput, setAutoCashoutInput] = useState(
     autoCashoutAt != null ? String(autoCashoutAt) : '',
   );
+  const [errorShake, setErrorShake] = useState(false);
+
+  function triggerHaptic(type: 'success' | 'error') {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+      try {
+        if (type === 'error') {
+          window.navigator.vibrate([50, 50, 50]);
+        } else {
+          window.navigator.vibrate(50);
+        }
+      } catch (e) {
+        // Ignore haptic errors
+      }
+    }
+  }
 
   function handlePlaceBet() {
+    if (autoCashoutInput.trim() !== '') {
+      const parsedAuto = parseFloat(autoCashoutInput);
+      if (isNaN(parsedAuto) || parsedAuto < 1.01) {
+        triggerHaptic('error');
+        setErrorShake(true);
+        setTimeout(() => setErrorShake(false), 400);
+        return; // Prevent placing bet if auto-cashout is invalid
+      }
+    }
+
+    triggerHaptic('success');
     const parsedAuto = parseFloat(autoCashoutInput);
     const autoCashout =
       !isNaN(parsedAuto) && parsedAuto >= 1.01 ? parsedAuto : undefined;
@@ -89,7 +115,7 @@ export function BetPanel({ onPlaceBet, onCashOut }: BetPanelProps) {
       </div>
 
       {/* Auto cashout */}
-      <div>
+      <div className={`transition-transform ${errorShake ? 'animate-shake' : ''}`}>
         <label className="text-xs text-gray-400 mb-1 block">
           Auto Cash Out (optional)
         </label>
@@ -99,9 +125,19 @@ export function BetPanel({ onPlaceBet, onCashOut }: BetPanelProps) {
           step="0.01"
           placeholder="e.g. 2.00"
           value={autoCashoutInput}
-          onChange={(e) => handleAutoCashoutInput(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-cyan-500 transition-colors"
+          onChange={(e) => {
+            setErrorShake(false);
+            handleAutoCashoutInput(e.target.value);
+          }}
+          className={`w-full bg-gray-800 border rounded-lg px-3 py-2 text-white font-mono focus:outline-none transition-all ${
+            errorShake
+              ? 'border-red-500 focus:border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
+              : 'border-gray-700 focus:border-cyan-500'
+          }`}
         />
+        {errorShake && (
+          <p className="text-red-500 text-xs mt-1">Must be at least 1.01</p>
+        )}
       </div>
 
       {/* Action button */}

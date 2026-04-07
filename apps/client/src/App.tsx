@@ -65,6 +65,7 @@ export function App() {
   // Функция-обработчик ставки, отправляет сумму и авто-кэшаут на сервер
   const handlePlaceBet = useCallback(
     (amount: number, autoCashout: number | undefined) => {
+      
       const currentPhase = useGameStore.getState().phase;
       // Ставить можно только во время ожидания нового раунда или обратного отсчета
       if (currentPhase !== GamePhase.WAITING && currentPhase !== GamePhase.COUNTDOWN) return;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import confetti from 'canvas-confetti';
 import { usePlayerStore } from '../../store/player-store.js';
 import { formatCurrency, formatMultiplier } from '../../lib/format.js';
 
@@ -25,6 +26,32 @@ export function CashoutCelebration() {
         id: Date.now(),
       });
       
+      // Trigger confetti celebration
+      const duration = 2000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 5,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#10b981', '#34d399', '#059669']
+        });
+        confetti({
+          particleCount: 5,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#10b981', '#34d399', '#059669']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+
       const timer = setTimeout(() => {
         setCelebration(null);
       }, 2000);
