@@ -244,8 +244,8 @@ export class GameRoom {
 
     // Игрок хочет сделать ставку
     if (msg.type === 'bet:place') {
-      if (this.engine.phase !== GamePhase.WAITING) {
-        this.sendError(ws, 'INVALID_PHASE', 'Bets only accepted during waiting phase');
+      if (this.engine.phase !== GamePhase.WAITING && this.engine.phase !== GamePhase.COUNTDOWN) {
+        this.sendError(ws, 'INVALID_PHASE', 'Bets only accepted during waiting or countdown phase');
         return;
       }
 

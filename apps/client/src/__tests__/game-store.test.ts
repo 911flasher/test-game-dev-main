@@ -21,9 +21,15 @@ beforeEach(() => {
   usePlayerStore.setState({
     balance: 1000,
     betAmount: 10,
+    baseBetAmount: 10,
     autoCashoutAt: null,
     hasActiveBet: false,
     cashedOutAt: null,
+    autoBetEnabled: false,
+    autoBetStrategy: 'flat',
+    autoBetMultiplier: 2,
+    lastBetAmount: null,
+    lastRoundResult: null,
   });
 });
 
@@ -103,6 +109,7 @@ describe('playerStore', () => {
     usePlayerStore.getState().placeBet(100);
     expect(usePlayerStore.getState().balance).toBe(900);
     expect(usePlayerStore.getState().hasActiveBet).toBe(true);
+    expect(usePlayerStore.getState().lastBetAmount).toBe(100);
   });
 
   it('adds winnings and sets cashedOutAt on cashOut', () => {
@@ -111,6 +118,7 @@ describe('playerStore', () => {
     expect(usePlayerStore.getState().balance).toBe(1150);
     expect(usePlayerStore.getState().cashedOutAt).toBe(2.5);
     expect(usePlayerStore.getState().hasActiveBet).toBe(false);
+    expect(usePlayerStore.getState().lastRoundResult).toBe('win');
   });
 
   it('resets hasActiveBet and cashedOutAt for new round', () => {
@@ -129,5 +137,62 @@ describe('playerStore', () => {
   it('sets balance via setBalance', () => {
     usePlayerStore.getState().setBalance(500);
     expect(usePlayerStore.getState().balance).toBe(500);
+  });
+
+  it('keeps base bet in flat auto-bet mode', () => {
+    usePlayerStore.setState({
+      autoBetEnabled: true,
+      autoBetStrategy: 'flat',
+      betAmount: 25,
+      baseBetAmount: 25,
+      lastBetAmount: 25,
+      lastRoundResult: 'loss',
+    });
+
+    usePlayerStore.getState().resetForNewRound();
+
+    expect(usePlayerStore.getState().betAmount).toBe(25);
+  });
+
+  it('increases next bet after a martingale loss', () => {
+    usePlayerStore.setState({
+      autoBetEnabled: true,
+      autoBetStrategy: 'martingale',
+      autoBetMultiplier: 2.5,
+      betAmount: 10,
+      baseBetAmount: 10,
+      lastBetAmount: 10,
+      lastRoundResult: 'loss',
+    });
+
+    usePlayerStore.getState().resetForNewRound();
+
+    expect(usePlayerStore.getState().betAmount).toBe(25);
+  });
+
+  it('increases next bet after a paroli win', () => {
+    usePlayerStore.setState({
+      autoBetEnabled: true,
+      autoBetStrategy: 'paroli',
+      autoBetMultiplier: 2,
+      betAmount: 15,
+      baseBetAmount: 15,
+      lastBetAmount: 15,
+      lastRoundResult: 'win',
+    });
+
+    usePlayerStore.getState().resetForNewRound();
+
+    expect(usePlayerStore.getState().betAmount).toBe(30);
+  });
+
+  it('records a loss only when a bet is active', () => {
+    usePlayerStore.getState().recordLoss();
+    expect(usePlayerStore.getState().lastRoundResult).toBeNull();
+
+    usePlayerStore.setState({ hasActiveBet: true });
+    usePlayerStore.getState().recordLoss();
+
+    expect(usePlayerStore.getState().lastRoundResult).toBe('loss');
   });
 });

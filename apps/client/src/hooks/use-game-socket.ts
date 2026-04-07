@@ -50,6 +50,7 @@ export function useGameSocket() {
       switch (msg.type) {
         case 'round:waiting':
           game.setPhase(GamePhase.WAITING);
+          useGameStore.setState({ roundId: msg.roundId });
           game.resetRound();
           player.resetForNewRound();
           break;
@@ -68,6 +69,7 @@ export function useGameSocket() {
           break;
 
         case 'round:crash': {
+          player.recordLoss();
           game.setPhase(GamePhase.CRASHED);
           game.setCrashPoint(msg.crashPoint, msg.serverSeed);
           const roundId = useGameStore.getState().roundId;
@@ -103,15 +105,14 @@ export function useGameSocket() {
           game.setMultiplier(msg.multiplier);
           game.setBots(msg.bots);
           player.setBalance(msg.balance);
-          if (msg.roundId) {
-            useGameStore.setState({ roundId: msg.roundId });
-          }
+          useGameStore.setState({ roundId: msg.roundId });
           if (msg.playerBet) {
             usePlayerStore.setState({
               betAmount: msg.playerBet.amount,
               hasActiveBet: true,
               autoCashoutAt: msg.playerBet.autoCashoutAt,
               cashedOutAt: null,
+              lastBetAmount: msg.playerBet.amount,
             });
           } else {
             usePlayerStore.setState({

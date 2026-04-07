@@ -3,7 +3,7 @@
  * Назначение: собирает вместе все UI-элементы (Canvas, HUD, панель ставок),
  * инициализирует веб-сокеты и запускает игровой цикл (Game Loop).
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { GamePhase } from '@crash/shared';
 import { useGameSocket } from './hooks/use-game-socket.js';
 import { useGameLoop } from './hooks/use-game-loop.js';
@@ -18,6 +18,18 @@ import { PlayerList } from './components/social/PlayerList.js';
 import { RoundHistory } from './components/history/RoundHistory.js';
 import { VerifyModal } from './components/fairness/VerifyModal.js';
 import { CashoutCelebration } from './components/hud/CashoutCelebration.js';
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+
+  const tagName = target.tagName.toLowerCase();
+  return (
+    target.isContentEditable ||
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select'
+  );
+}
 
 export function App() {
   // Подключаемся к WebSocket серверу и получаем функцию для отправки сообщений
@@ -36,6 +48,9 @@ export function App() {
   const connected = useGameStore((s) => s.connected);
   const phase = useGameStore((s) => s.phase);
   const crashPoint = useGameStore((s) => s.crashPoint);
+  const roundId = useGameStore((s) => s.roundId);
+  const autoBetEnabled = usePlayerStore((s) => s.autoBetEnabled);
+  const autoBetRoundRef = useRef<string | null>(null);
 
   // ResizeObserver для автоматического подгона размера Canvas 
   // под текущий размер его контейнера в DOM
@@ -65,10 +80,13 @@ export function App() {
   // Функция-обработчик ставки, отправляет сумму и авто-кэшаут на сервер
   const handlePlaceBet = useCallback(
     (amount: number, autoCashout: number | undefined) => {
-      
       const currentPhase = useGameStore.getState().phase;
+      const { hasActiveBet, balance } = usePlayerStore.getState();
+
       // Ставить можно только во время ожидания нового раунда или обратного отсчета
       if (currentPhase !== GamePhase.WAITING && currentPhase !== GamePhase.COUNTDOWN) return;
+      if (!useGameStore.getState().connected || hasActiveBet) return;
+      if (amount <= 0 || amount > balance) return;
 
       // Обновляем локальное хранилище игрока и шлем данные по сокету
       usePlayerStore.getState().placeBet(amount);
@@ -80,10 +98,57 @@ export function App() {
   // Функция-обработчик для снятия выигрыша
   const handleCashOut = useCallback(() => {
     const { hasActiveBet } = usePlayerStore.getState();
-    if (!hasActiveBet) return;
+    if (!hasActiveBet || useGameStore.getState().phase !== GamePhase.FLYING) return;
 
     send({ type: 'bet:cashout' });
   }, [send]);
+
+  const tryPlaceCurrentBet = useEffectEvent(() => {
+    const { betAmount, autoCashoutAt } = usePlayerStore.getState();
+    handlePlaceBet(betAmount, autoCashoutAt ?? undefined);
+  });
+
+  const tryCashOut = useEffectEvent(() => {
+    handleCashOut();
+  });
+
+  useEffect(() => {
+    if (phase !== GamePhase.WAITING || !autoBetEnabled || !roundId) {
+      if (phase !== GamePhase.WAITING) {
+        autoBetRoundRef.current = null;
+      }
+      return;
+    }
+
+    if (autoBetRoundRef.current === roundId) {
+      return;
+    }
+
+    autoBetRoundRef.current = roundId;
+    tryPlaceCurrentBet();
+  }, [autoBetEnabled, phase, roundId, tryPlaceCurrentBet]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.repeat || isEditableTarget(event.target)) {
+        return;
+      }
+
+      if (event.code === 'Space') {
+        event.preventDefault();
+        tryPlaceCurrentBet();
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        tryCashOut();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [tryCashOut, tryPlaceCurrentBet]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-white overflow-hidden">

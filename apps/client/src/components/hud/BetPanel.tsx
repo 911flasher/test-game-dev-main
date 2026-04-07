@@ -10,14 +10,32 @@ interface BetPanelProps {
 }
 
 export function BetPanel({ onPlaceBet, onCashOut }: BetPanelProps) {
-  const { balance, betAmount, autoCashoutAt, setBetAmount, setAutoCashout } =
+  const {
+    balance,
+    betAmount,
+    autoCashoutAt,
+    autoBetEnabled,
+    autoBetStrategy,
+    autoBetMultiplier,
+    setBetAmount,
+    setAutoCashout,
+    setAutoBetEnabled,
+    setAutoBetStrategy,
+    setAutoBetMultiplier,
+  } =
     usePlayerStore(
       useShallow((s) => ({
         balance: s.balance,
         betAmount: s.betAmount,
         autoCashoutAt: s.autoCashoutAt,
+        autoBetEnabled: s.autoBetEnabled,
+        autoBetStrategy: s.autoBetStrategy,
+        autoBetMultiplier: s.autoBetMultiplier,
         setBetAmount: s.setBetAmount,
         setAutoCashout: s.setAutoCashout,
+        setAutoBetEnabled: s.setAutoBetEnabled,
+        setAutoBetStrategy: s.setAutoBetStrategy,
+        setAutoBetMultiplier: s.setAutoBetMultiplier,
       }))
     );
 
@@ -137,6 +155,89 @@ export function BetPanel({ onPlaceBet, onCashOut }: BetPanelProps) {
         />
         {errorShake && (
           <p className="text-red-500 text-xs mt-1">Must be at least 1.01</p>
+        )}
+      </div>
+
+      <div
+        className={`rounded-xl border bg-gray-950/70 p-3 transition-all ${
+          autoBetEnabled ? 'border-cyan-900/70' : 'border-gray-800'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-white">Auto Bet</p>
+            <p className="text-[11px] text-gray-500">
+              {autoBetEnabled
+                ? 'Configurable strategy for the next rounds'
+                : 'Disabled. Enable to configure strategy'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAutoBetEnabled(!autoBetEnabled)}
+            aria-pressed={autoBetEnabled}
+            className={`relative inline-flex h-7 w-14 items-center rounded-full border transition-colors ${
+              autoBetEnabled
+                ? 'border-cyan-400 bg-cyan-500/20'
+                : 'border-gray-700 bg-gray-800'
+            }`}
+          >
+            <span
+              className={`ml-1 block h-5 w-5 rounded-full transition-transform ${
+                autoBetEnabled
+                  ? 'translate-x-6 bg-cyan-400'
+                  : 'translate-x-0 bg-gray-500'
+              }`}
+            />
+          </button>
+        </div>
+
+        {autoBetEnabled && (
+          <div className="mt-3 border-t border-cyan-950/60 pt-3">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'flat', label: 'Flat' },
+                { value: 'martingale', label: 'Martingale' },
+                { value: 'paroli', label: 'Paroli' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() =>
+                    setAutoBetStrategy(option.value as 'flat' | 'martingale' | 'paroli')
+                  }
+                  className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${
+                    autoBetStrategy === option.value
+                      ? 'border-cyan-500 bg-cyan-500/15 text-cyan-300'
+                      : 'border-gray-800 bg-gray-900 text-gray-400 hover:border-gray-700 hover:text-gray-200'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3">
+              <label className="mb-1 block text-xs text-gray-400">Strategy Multiplier</label>
+              <input
+                type="number"
+                min="1.10"
+                step="0.10"
+                value={autoBetMultiplier}
+                onChange={(e) => {
+                  const parsed = parseFloat(e.target.value);
+                  if (!Number.isNaN(parsed) && parsed >= 1.1) {
+                    setAutoBetMultiplier(parsed);
+                  }
+                }}
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white font-mono focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              <p className="mt-2 text-[11px] text-gray-500">
+                `Flat` keeps the base bet. `Martingale` increases after a loss. `Paroli`
+                increases after a win.
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
