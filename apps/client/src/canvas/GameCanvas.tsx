@@ -19,8 +19,8 @@ export function GameCanvas({ width, height }: GameCanvasProps) {
     if (!wrapper) return;
     const canvas = wrapper.querySelector('canvas');
     if (canvas) {
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
+      // canvas.style.width = `${width}px`;
+      // canvas.style.height = `${height}px`;
     }
   }, [width, height]);
 
