@@ -9,6 +9,7 @@ export class WsClient {
   private handlers: MessageHandler[] = [];
   private url: string;
   private shouldReconnect = false;
+  private onConnectionStateChange?: (connected: boolean) => void;
 
   constructor(url: string) {
     this.url = url;
@@ -22,6 +23,10 @@ export class WsClient {
   private openConnection(): void {
     const ws = new WebSocket(this.url);
     this.ws = ws;
+
+    ws.addEventListener('open', () => {
+      this.onConnectionStateChange?.(true);
+    });
 
     ws.addEventListener('message', (event: MessageEvent) => {
       let raw: unknown;
@@ -44,6 +49,7 @@ export class WsClient {
     });
 
     ws.addEventListener('close', () => {
+      this.onConnectionStateChange?.(false);
       if (this.shouldReconnect) {
         setTimeout(() => {
           if (this.shouldReconnect) {
@@ -70,6 +76,15 @@ export class WsClient {
     this.handlers.push(handler);
     return () => {
       this.handlers = this.handlers.filter((h) => h !== handler);
+    };
+  }
+
+  onConnectionChange(handler: (connected: boolean) => void): () => void {
+    this.onConnectionStateChange = handler;
+    return () => {
+      if (this.onConnectionStateChange === handler) {
+        this.onConnectionStateChange = undefined;
+      }
     };
   }
 

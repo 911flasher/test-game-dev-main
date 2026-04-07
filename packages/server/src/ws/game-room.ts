@@ -17,15 +17,19 @@ interface PlayerBet {
   autoCashoutAt: number | null;
 }
 
+interface PlayerSession {
+  balance: number;
+  playerBet: PlayerBet | null;
+  socket: WebSocket | null;
+}
+
 export class GameRoom {
   private engine: CrashEngine;
   private botManager: BotManager;
   // Набор всех активных вебсокет-соединений (клиентов)
   private clients = new Set<WebSocket>();
-  // Мапа балансов, где ключ — это сам сокет клиента
-  private balances = new Map<WebSocket, number>();
-  // Мапа текущих ставок, где ключ — сокет клиента
-  private playerBets = new Map<WebSocket, PlayerBet>();
+  private sessions = new Map<string, PlayerSession>();
+  private socketToPlayerId = new Map<WebSocket, string>();
   private roundHistory: RoundResult[] = [];
   private currentBots: BotPlayer[] = [];
   private currentMultiplier = 1.0;
@@ -42,7 +46,9 @@ export class GameRoom {
     // Когда начинается фаза ожидания нового раунда
     this.engine.on('roundWaiting', ({ roundId, nextHash }: { roundId: string; nextHash: string }) => {
       // Очищаем ставки предыдущего раунда (те, кто не вывел, уже сгорели при краше)
-      this.playerBets.clear();
+      for (const session of this.sessions.values()) {
+        session.playerBet = null;
+      }
       this.currentMultiplier = 1.0;
       this.currentElapsed = 0;
 
@@ -103,30 +109,57 @@ export class GameRoom {
       }
 
       // Все активные ставки, которые не были выведены до краша, сгорают
-      this.playerBets.clear();
+      for (const session of this.sessions.values()) {
+        session.playerBet = null;
+      }
     });
+  }
+
+  private getOrCreateSession(playerId: string): PlayerSession {
+    const existingSession = this.sessions.get(playerId);
+    if (existingSession) {
+      return existingSession;
+    }
+
+    const session: PlayerSession = {
+      balance: STARTING_BALANCE,
+      playerBet: null,
+      socket: null,
+    };
+    this.sessions.set(playerId, session);
+    return session;
+  }
+
+  private getSessionBySocket(ws: WebSocket): PlayerSession | null {
+    const playerId = this.socketToPlayerId.get(ws);
+    if (!playerId) {
+      return null;
+    }
+
+    return this.sessions.get(playerId) ?? null;
   }
 
   // Логика автоматического вывода ставки, если множитель достиг лимита игрока
   private processAutoCashouts(multiplier: number): void {
-    for (const [client, bet] of this.playerBets.entries()) {
-      if (bet.autoCashoutAt !== null && multiplier >= bet.autoCashoutAt) {
-        this.executeCashout(client, multiplier);
+    for (const [playerId, session] of this.sessions.entries()) {
+      const bet = session.playerBet;
+      if (bet?.autoCashoutAt !== null && bet && multiplier >= bet.autoCashoutAt) {
+        this.executeCashout(playerId, multiplier);
       }
     }
   }
 
   // Физическое исполнение вывода ставки: начисление баланса и оповещение клиента
-  private executeCashout(client: WebSocket, multiplier: number): void {
-    const bet = this.playerBets.get(client);
+  private executeCashout(playerId: string, multiplier: number): void {
+    const session = this.sessions.get(playerId);
+    const bet = session?.playerBet;
     if (!bet) return;
 
     const winnings = bet.amount * multiplier;
-    const currentBalance = this.balances.get(client) ?? STARTING_BALANCE;
-    const newBalance = currentBalance + winnings;
+    const newBalance = session.balance + winnings;
     // Обновляем баланс и удаляем ставку (игрок больше не в раунде)
-    this.balances.set(client, newBalance);
-    this.playerBets.delete(client);
+    session.balance = newBalance;
+    session.playerBet = null;
 
     const msg: ServerMessage = {
       type: 'player:cashout_accepted',
@@ -135,16 +168,23 @@ export class GameRoom {
       at: multiplier,
     };
 
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(msg));
+    if (session.socket?.readyState === WebSocket.OPEN) {
+      session.socket.send(JSON.stringify(msg));
     }
   }
 
   // Добавление нового клиента при подключении по WebSocket
-  addClient(ws: WebSocket): void {
+  addClient(ws: WebSocket, playerId: string): void {
     this.clients.add(ws);
-    // Даем стартовый баланс (мокаем авторизацию)
-    this.balances.set(ws, STARTING_BALANCE);
+    this.socketToPlayerId.set(ws, playerId);
+
+    const session = this.getOrCreateSession(playerId);
+
+    if (session.socket && session.socket !== ws && session.socket.readyState === WebSocket.OPEN) {
+      session.socket.close(1000, 'Replaced by a newer connection');
+    }
+
+    session.socket = ws;
 
     // Отправляем новому клиенту текущее состояние игры (State Sync)
     const syncMsg: ServerMessage = {
@@ -153,11 +193,12 @@ export class GameRoom {
       roundId: this.engine.getCurrentRoundId(),
       multiplier: this.currentMultiplier,
       elapsed: this.currentElapsed,
+      balance: session.balance,
       bots: this.currentBots,
-      playerBet: this.playerBets.get(ws)
+      playerBet: session.playerBet
         ? {
-            amount: this.playerBets.get(ws)!.amount,
-            autoCashoutAt: this.playerBets.get(ws)!.autoCashoutAt,
+            amount: session.playerBet.amount,
+            autoCashoutAt: session.playerBet.autoCashoutAt,
           }
         : null,
     };
@@ -170,8 +211,16 @@ export class GameRoom {
   // Удаление клиента при обрыве соединения
   removeClient(ws: WebSocket): void {
     this.clients.delete(ws);
-    this.balances.delete(ws);
-    this.playerBets.delete(ws);
+    const playerId = this.socketToPlayerId.get(ws);
+    this.socketToPlayerId.delete(ws);
+    if (!playerId) {
+      return;
+    }
+
+    const session = this.sessions.get(playerId);
+    if (session?.socket === ws) {
+      session.socket = null;
+    }
   }
 
   // Обработчик входящих сообщений от WebSocket клиента
@@ -200,24 +249,29 @@ export class GameRoom {
         return;
       }
 
-      if (this.playerBets.has(ws)) {
+      const session = this.getSessionBySocket(ws);
+      if (!session) {
+        this.sendError(ws, 'UNKNOWN_PLAYER', 'Player session not found');
+        return;
+      }
+
+      if (session.playerBet) {
         this.sendError(ws, 'BET_EXISTS', 'You already have an active bet');
         return;
       }
 
-      const balance = this.balances.get(ws) ?? STARTING_BALANCE;
-      if (msg.amount > balance) {
+      if (msg.amount > session.balance) {
         this.sendError(ws, 'INSUFFICIENT_BALANCE', 'Insufficient balance');
         return;
       }
 
       // Списываем ставку с баланса сразу
-      const newBalance = balance - msg.amount;
-      this.balances.set(ws, newBalance);
-      this.playerBets.set(ws, {
+      const newBalance = session.balance - msg.amount;
+      session.balance = newBalance;
+      session.playerBet = {
         amount: msg.amount,
         autoCashoutAt: msg.autoCashoutAt ?? null,
-      });
+      };
 
       const response: ServerMessage = {
         type: 'player:bet_accepted',
@@ -235,7 +289,9 @@ export class GameRoom {
         return;
       }
 
-      if (!this.playerBets.has(ws)) {
+      const playerId = this.socketToPlayerId.get(ws);
+      const session = playerId ? this.sessions.get(playerId) : null;
+      if (!playerId || !session?.playerBet) {
         this.sendError(ws, 'NO_BET', 'No active bet to cash out');
         return;
       }
@@ -243,7 +299,7 @@ export class GameRoom {
       // Сервер сам решает, по какому множителю проходит вывод средств 
       // (это защищает от читов клиента)
       const multiplier = this.engine.getCurrentMultiplier();
-      this.executeCashout(ws, multiplier);
+      this.executeCashout(playerId, multiplier);
     }
   }
 

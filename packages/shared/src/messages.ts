@@ -69,6 +69,7 @@ export const stateSyncSchema = z.object({
   roundId: z.string().nullable(),
   multiplier: z.number(),
   elapsed: z.number(),
+  balance: z.number(),
   bots: z.array(botPlayerSchema),
   playerBet: z.object({
     amount: z.number(),

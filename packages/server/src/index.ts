@@ -24,9 +24,17 @@ async function main() {
   const gameRoom = new GameRoom();
 
   // Настройка маршрута (роута) для WebSocket подключений
-  app.get('/ws', { websocket: true }, (socket) => {
+  app.get('/ws', { websocket: true }, (socket, request) => {
+    const playerIdParam = request.query as { playerId?: string };
+    const playerId = typeof playerIdParam.playerId === 'string' ? playerIdParam.playerId.trim() : '';
+
+    if (playerId === '') {
+      socket.close(1008, 'Missing playerId');
+      return;
+    }
+
     // При подключении добавляем клиента в игровую комнату
-    gameRoom.addClient(socket);
+    gameRoom.addClient(socket, playerId);
 
     // Слушаем входящие сообщения от клиента (например, ставки, кэшауты)
     socket.on('message', (raw) => {
