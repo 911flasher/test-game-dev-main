@@ -4,6 +4,17 @@ A provably fair Crash game (Aviator-style) with a rocket/space theme. Built as a
 
 **Read [`CHALLENGE.md`](./CHALLENGE.md) for full instructions.**
 
+## Current State
+
+The project now includes:
+
+- restored active bets after WebSocket reconnect;
+- auto-bet with `flat`, `martingale`, and `paroli` strategies;
+- keyboard shortcuts: `Space` to place a bet, `Enter` to cash out;
+- sound design requirements documented in [`SOUND_REQUIREMENTS.md`](./SOUND_REQUIREMENTS.md).
+
+![Current game preview](./done.png)
+
 ## Quick Start
 
 ```bash
