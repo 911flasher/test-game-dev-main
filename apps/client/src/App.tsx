@@ -95,7 +95,7 @@ export function App() {
         {/* Центральная зона с Canvas и наложением HUD */}
         <div
           ref={canvasContainerRef}
-          className="flex-1 relative bg-gray-900/50 rounded-lg overflow-hidden"
+          className="flex-1 min-w-0 relative bg-gray-900/50 rounded-lg overflow-hidden"
         >
           {/* PixiJS Canvas (звезды, кривая множителя, взрыв) */}
           <GameCanvas width={canvasSize.width} height={canvasSize.height} />
