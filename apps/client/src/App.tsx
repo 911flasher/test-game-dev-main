@@ -91,11 +91,11 @@ export function App() {
       <RoundHistory />
 
       {/* Основной блок: Игровая зона и боковая панель */}
-      <div className="flex flex-1 gap-4 p-4 min-h-0">
+      <div className="flex flex-col lg:flex-row flex-1 gap-4 p-4 min-h-0 overflow-hidden">
         {/* Центральная зона с Canvas и наложением HUD */}
         <div
           ref={canvasContainerRef}
-          className="flex-1 min-w-0 relative bg-gray-900/50 rounded-lg overflow-hidden"
+          className="flex-none lg:flex-1 h-[45vh] lg:h-auto min-w-0 relative bg-gray-900/50 rounded-lg overflow-hidden shrink-0"
         >
           {/* PixiJS Canvas (звезды, кривая множителя, взрыв) */}
           <GameCanvas width={canvasSize.width} height={canvasSize.height} />
@@ -110,7 +110,7 @@ export function App() {
         </div>
 
         {/* Боковая панель для управления ставками и списком игроков */}
-        <aside className="w-72 flex flex-col gap-3 shrink-0">
+        <aside className="flex-1 lg:flex-none lg:w-72 flex flex-col gap-3 overflow-y-auto pr-1">
           <BetPanel onPlaceBet={handlePlaceBet} onCashOut={handleCashOut} />
           <PlayerList />
         </aside>
