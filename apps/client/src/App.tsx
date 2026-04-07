@@ -29,7 +29,7 @@ export function App() {
 
   // Реф для контейнера с Canvas, чтобы отслеживать изменение размеров окна
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [verifyOpen, setVerifyOpen] = useState(false);
 
   // Достаем ключевые состояния из глобального хранилища игры (Zustand)
@@ -97,11 +97,15 @@ export function App() {
           ref={canvasContainerRef}
           className="flex-none lg:flex-1 h-[45vh] lg:h-auto min-w-0 relative bg-gray-900/50 rounded-lg overflow-hidden shrink-0"
         >
-          {/* PixiJS Canvas (звезды, кривая множителя, взрыв) */}
-          <GameCanvas width={canvasSize.width} height={canvasSize.height} />
-          
-          {/* Rive-анимация ракеты поверх Canvas */}
-          <RocketRive />
+          {canvasSize.width > 0 && canvasSize.height > 0 && (
+            <>
+              {/* PixiJS Canvas (звезды, кривая множителя, взрыв) */}
+              <GameCanvas width={canvasSize.width} height={canvasSize.height} />
+              
+              {/* Rive-анимация ракеты поверх Canvas */}
+              <RocketRive />
+            </>
+          )}
           
           {/* Текстовые компоненты интерфейса (цифры множителя, таймер) */}
           <MultiplierDisplay />
